@@ -286,7 +286,7 @@ class SimGrasp(Sim):
         pb.changeDynamics(id, -1, lateralFriction=2, spinningFriction=1)
         return id
 
-    def render_camera(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def render_camera(self, camera_idx: int = 0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Renders color, depth, and segmentation images from the simulated RealSense D435 camera.
 
@@ -301,7 +301,7 @@ class SimGrasp(Sim):
                 - segm (np.ndarray): The segmentation mask (height, width) as a NumPy array.
         """
 
-        config = self.realsensed435_cam[0]
+        config = self.realsensed435_cam[camera_idx]
         # OpenGL camera settings.
         lookdir = np.float32([0, 0, 1]).reshape(3, 1)
         updir = np.float32([0, -1, 0]).reshape(3, 1)

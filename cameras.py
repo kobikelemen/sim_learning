@@ -17,15 +17,25 @@ class RealSenseD435:
     intrinsics = np.array([[462.14, 0, 320], [0, 462.14, 240], [0, 0, 1]])
     # Set default camera poses.
     # relative to the manipulator
-    front_position = (0, 0.1, 0.2)
-    front_rotation = (np.pi/4, np.pi*4/4, np.pi / 2)
+    # front_position = (0, 0.1, 0.2)
+    # front_rotation = (np.pi/4, np.pi*4/4, np.pi / 2)
+    # front_rotation = p.getQuaternionFromEuler(front_rotation)
+    front_position = (1.0, 0, 0.75)
+    front_rotation = (np.pi / 4, np.pi, -np.pi / 2)
     front_rotation = p.getQuaternionFromEuler(front_rotation)
+
     left_position = (0, 0.5, 0.75)
     left_rotation = (np.pi / 4.5, np.pi, np.pi / 4)
     left_rotation = p.getQuaternionFromEuler(left_rotation)
     right_position = (0, -0.5, 0.75)
     right_rotation = (np.pi / 4.5, np.pi, 3 * np.pi / 4)
     right_rotation = p.getQuaternionFromEuler(right_rotation)
+    # back_position = (0, 0.5, 0.2)
+    # back_rotation = (np.pi / 4.5, np.pi, 3 * np.pi / 4)
+    # back_rotation = p.getQuaternionFromEuler(back_rotation)
+    back_position = (-0.5, 0, 0.75)
+    back_rotation = (np.pi / 4.5, np.pi, 2 * np.pi / 4)
+    back_rotation = p.getQuaternionFromEuler(back_rotation)
 
     # Default camera configs.
     CONFIG = [
@@ -50,6 +60,14 @@ class RealSenseD435:
             "intrinsics": intrinsics,
             "position": right_position,
             "rotation": right_rotation,
+            "zrange": (0.01, 10.0),
+            "noise": False,
+        },
+        {
+            "image_size": image_size,
+            "intrinsics": intrinsics,
+            "position": back_position,
+            "rotation": back_rotation,
             "zrange": (0.01, 10.0),
             "noise": False,
         },

@@ -245,6 +245,65 @@ def sample_box_points(body_uid, link_idx=-1, n_pts=50_000, random_seed=None):
 
     return world_pts
 
+def get_ground_truth_pointcloud(
+    client,
+    body_id: int,
+    link_indices=None,
+    flags=pb.MESH_DATA_SIMULATION_MESH,  # use p.MESH_DATA_VISUAL_MESH for the visual geometry
+):
+    """
+    Return an (N, 3) NumPy array with *world-space* vertices of `body_id`.
+
+    Parameters
+    ----------
+    client : the pybullet module or a BulletClient instance
+    body_id : int
+        ID returned by loadURDF/loadMJCF/etc.
+    link_indices : iterable[int] or None
+        Which links to include.  None = base (-1) + every joint link.
+    flags : int
+        MESH_DATA_SIMULATION_MESH (convex collision mesh) or
+        MESH_DATA_VISUAL_MESH (high-res visual mesh).
+
+    Notes
+    -----
+    • Works for multi-link models – every link is individually transformed
+      into the world frame.  
+    • Primitive shapes that do not expose a triangle mesh via
+      `getMeshData` are silently skipped.  
+    """
+    if link_indices is None:
+        link_indices = [-1] + list(range(client.getNumJoints(body_id)))
+
+    pcs = []
+    for link in link_indices:
+        vcount, vertices = client.getMeshData(
+            bodyUniqueId=body_id,
+            linkIndex=link,
+            flags=flags,
+        )
+
+        # Some primitives (box, sphere, cylinder) may return zero vertices
+        if vcount == 0:
+            continue
+
+        v_local = np.asarray(vertices, dtype=np.float32).reshape(-1, 3)
+
+        # Pose of this link in the world frame
+        if link == -1:
+            pos, orn = client.getBasePositionAndOrientation(body_id)
+        else:
+            # indices 4 & 5 are FK-computed world pose of the link frame
+            link_state = client.getLinkState(body_id, link, computeForwardKinematics=True)
+            pos, orn = link_state[4], link_state[5]
+
+        rot = np.array(client.getMatrixFromQuaternion(orn), dtype=np.float32).reshape(3, 3)
+        v_world = (rot @ v_local.T).T + np.asarray(pos, dtype=np.float32)
+        pcs.append(v_world)
+
+    return np.concatenate(pcs, axis=0) if pcs else np.empty((0, 3), dtype=np.float32)
+
+
 
 if __name__ == "__main__":
     sim = setup_placement_scenario()
