@@ -12,10 +12,12 @@ from sim import (
 )
 import cv2
 import matplotlib.pyplot as plt
+import os
 
 from placement_env import setup_placement_scenario
 
 URDF_PATH = "/mnt/02D0BBD8D0BBCFE1/repos/gb_example/trossen_arm_description/urdf/generated/wxai/wxai_follower.urdf"
+DEFAULT_DATA_PATH = "/mnt/02D0BBD8D0BBCFE1/repos/data/anyplace_synthetic_test_chunked"
 
 def generate_cubic_pointcloud(
         block_size = 1.0,   # edge‐length of the cube along x, y, z
@@ -212,38 +214,59 @@ def save_robotics_data_npz(
     
     # Build the data dictionary
     data_dict = {
+        "0": {
+            'success': _convert_value(success),
+            'multi_obj_names': np.array({
+                'parent': _convert_value(multi_obj_names_parent),
+                'child': _convert_value(multi_obj_names_child),
+            }),
+            'multi_obj_start_pcd' : np.array({
+                'parent': _convert_value(multi_obj_start_pcd_parent),
+                'child': _convert_value(multi_obj_start_pcd_child),
+            }),
+            'multi_obj_final_pcd' : np.array({
+                'parent': _convert_value(multi_obj_final_pcd_parent),
+                'child': _convert_value(multi_obj_final_pcd_child),
+            }),
+            'cam_intrinsics': _convert_value(cam_intrinsics),
+            'cam_poses': _convert_value(cam_poses),
+            'real_sim': _convert_value(real_sim),
+            'multi_obj_start_obj_pose' : np.array({
+                'parent': _convert_value(multi_obj_start_obj_pose_parent),
+                'child': _convert_value(multi_obj_start_obj_pose_child),
+            }),
+            'multi_obj_final_obj_pose' : np.array({
+                'parent': _convert_value(multi_obj_final_obj_pose_parent),
+                'child': _convert_value(multi_obj_final_obj_pose_child),
+            }),
+            
+            # # Optional fields
+            'grasp_pose_world' : np.array({
+                'parent': _convert_value(grasp_pose_world_parent),
+                'child': _convert_value(grasp_pose_world_child),
+            }),
+            'place_pose_world' : np.array({
+                'parent': _convert_value(place_pose_world_parent),
+                'child': _convert_value(place_pose_world_child),
+            }),
+            'grasp_joints' : np.array({
+                'parent': _convert_value(grasp_joints_parent),
+                'child': _convert_value(grasp_joints_child),
+            }),
+            'place_joints' : np.array({
+                'parent': _convert_value(place_joints_parent),
+                'child': _convert_value(place_joints_child),
+            }),
+
+            'ee_link': _convert_value(ee_link),
+            'gripper_type': _convert_value(gripper_type),
+            'pcd_pts': _convert_value(pcd_pts),
+            'processed_pcd': _convert_value(processed_pcd),
+            'rgb_imgs': _convert_value(rgb_imgs),
+            'depth_imgs': _convert_value(depth_imgs),
+            'multi_obj_part_pose_dict': _convert_value(multi_obj_part_pose_dict),
+        }
         # Required fields
-        'success': _convert_value(success),
-        'multi_obj_names_parent': _convert_value(multi_obj_names_parent),
-        'multi_obj_names_child': _convert_value(multi_obj_names_child),
-        'multi_obj_start_pcd_parent': _convert_value(multi_obj_start_pcd_parent),
-        'multi_obj_start_pcd_child': _convert_value(multi_obj_start_pcd_child),
-        'multi_obj_final_pcd_parent': _convert_value(multi_obj_final_pcd_parent),
-        'multi_obj_final_pcd_child': _convert_value(multi_obj_final_pcd_child),
-        'cam_intrinsics': _convert_value(cam_intrinsics),
-        'cam_poses': _convert_value(cam_poses),
-        'real_sim': _convert_value(real_sim),
-        'multi_obj_start_obj_pose_parent': _convert_value(multi_obj_start_obj_pose_parent),
-        'multi_obj_start_obj_pose_child': _convert_value(multi_obj_start_obj_pose_child),
-        'multi_obj_final_obj_pose_parent': _convert_value(multi_obj_final_obj_pose_parent),
-        'multi_obj_final_obj_pose_child': _convert_value(multi_obj_final_obj_pose_child),
-        
-        # # Optional fields
-        'grasp_pose_world_parent': _convert_value(grasp_pose_world_parent),
-        'grasp_pose_world_child': _convert_value(grasp_pose_world_child),
-        'place_pose_world_parent': _convert_value(place_pose_world_parent),
-        'place_pose_world_child': _convert_value(place_pose_world_child),
-        'grasp_joints_parent': _convert_value(grasp_joints_parent),
-        'grasp_joints_child': _convert_value(grasp_joints_child),
-        'place_joints_parent': _convert_value(place_joints_parent),
-        'place_joints_child': _convert_value(place_joints_child),
-        'ee_link': _convert_value(ee_link),
-        'gripper_type': _convert_value(gripper_type),
-        'pcd_pts': _convert_value(pcd_pts),
-        'processed_pcd': _convert_value(processed_pcd),
-        'rgb_imgs': _convert_value(rgb_imgs),
-        'depth_imgs': _convert_value(depth_imgs),
-        'multi_obj_part_pose_dict': _convert_value(multi_obj_part_pose_dict),
     }
     
     # Save to NPZ file
@@ -259,7 +282,10 @@ def save_robotics_data_npz(
 
 
 if __name__ == "__main__":
-    num_samples = 1000    
+    num_samples = 2000   
+    train_split = 1800
+    val_split = 100
+    test_split = 100
     block_size = 0.05
     n_samples_per_edge = 30
     sim = setup_placement_scenario()
@@ -272,6 +298,30 @@ if __name__ == "__main__":
         cam_pose[:3,3] = sim.realsensed435_cam[i]["position"]
         cam_poses.append(cam_pose)
 
+
+    if not os.path.exists(f"{DEFAULT_DATA_PATH}/0"):
+        os.makedirs(f"{DEFAULT_DATA_PATH}/0", exist_ok=True)
+    if not os.path.exists(f"{DEFAULT_DATA_PATH}/split_info"):
+        os.makedirs(f"{DEFAULT_DATA_PATH}/split_info", exist_ok=True)
+
+
+    # Generate filenames for each split
+    train_filenames = [f"demo_aug_{i}.npz" for i in range(train_split)]
+    val_filenames = [f"demo_aug_{i}.npz" for i in range(train_split, train_split + val_split)]
+    test_filenames = [f"demo_aug_{i}.npz" for i in range(train_split + val_split, num_samples)]
+
+    # Write train split
+    with open(os.path.join(f"{DEFAULT_DATA_PATH}/split_info/train_split.txt"), "w") as f:
+        f.write("\n".join(train_filenames))
+
+    # Write validation split 
+    with open(os.path.join(f"{DEFAULT_DATA_PATH}/split_info/train_val_split.txt"), "w") as f:
+        f.write("\n".join(val_filenames))
+
+    # Write test split
+    with open(os.path.join(f"{DEFAULT_DATA_PATH}/split_info/test_split.txt"), "w") as f:
+        f.write("\n".join(test_filenames))
+        
 
 
     for i in range(num_samples):
@@ -302,15 +352,12 @@ if __name__ == "__main__":
                                             orientation=R.from_euler("xyz", rand_orientation_euler).as_matrix(),
                                             samples_per_edge=n_samples_per_edge,
                                             surface_only=True)
-        # breakpoint()
 
         pcd_start_parent = o3d.geometry.PointCloud()
         pcd_start_parent.points = o3d.utility.Vector3dVector(pcd_npy_left)
         pcd_start_parent.points.extend(o3d.utility.Vector3dVector(pcd_npy_right))
         pcd_start_child = o3d.geometry.PointCloud()
         pcd_start_child.points = o3d.utility.Vector3dVector(pcd_npy_rand)
-
-        o3d.visualization.draw_geometries([pcd_start_child, pcd_start_parent])
 
 
         pcd_end_parent = o3d.geometry.PointCloud()
@@ -319,11 +366,21 @@ if __name__ == "__main__":
         pcd_end_child = o3d.geometry.PointCloud()
         pcd_end_child.points = o3d.utility.Vector3dVector(pcd_npy_target)
 
-        o3d.visualization.draw_geometries([pcd_end_child, pcd_end_parent])
         # [x , y , z , qx , qy , qz , qw] -> multi_obj_start_obj_pose_parent
 
+        parent_start_pos = target_pos
+        parent_start_quat = R.from_euler("xyz", block_orientation).as_quat().tolist()
+        child_start_pos = rand_pos
+        child_start_quat = R.from_euler("xyz", rand_orientation_euler).as_quat().tolist()
+
+        parent_end_pos = target_pos
+        parent_end_quat = R.from_euler("xyz", block_orientation).as_quat().tolist()
+        child_end_pos = target_pos
+        child_end_quat = R.from_euler("xyz", block_orientation).as_quat().tolist()
+        save_path = f"{DEFAULT_DATA_PATH}/0/demo_aug_{i}.npz"
+
         save_robotics_data_npz(
-            filename=f"data/sim_data_{i}.npz",
+            filename=save_path,
             success=True,
             multi_obj_names_parent="parent",
             multi_obj_names_child="child",
@@ -334,9 +391,12 @@ if __name__ == "__main__":
             cam_intrinsics=intrinsics,
             cam_poses=cam_poses,
             real_sim="sim",
-            multi_obj_start_obj_pose_parent=left_pos,
-            multi_obj_start_obj_pose_child=rand_pos,
+            multi_obj_start_obj_pose_parent=parent_start_pos + parent_start_quat,
+            multi_obj_start_obj_pose_child=child_start_pos + child_start_quat,
+            multi_obj_final_obj_pose_parent=parent_end_pos + parent_end_quat,
+            multi_obj_final_obj_pose_child=child_end_pos + child_end_quat,
         )
+
 
 
         # pcd = o3d.geometry.PointCloud()
